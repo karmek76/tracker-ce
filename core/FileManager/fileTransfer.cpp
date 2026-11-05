@@ -160,6 +160,13 @@ uint8_t cFileTransfer::loadFileToMemory(const char* file,
             {
                 transferStep = 3;
             }
+            else if (mode == fileWholeOnce)
+            {
+                // Everything was asked for in one read, so a shorter result means
+                // the file ends here. Waiting for more would hand the rest of this
+                // transfer to whoever calls next, with a different buffer.
+                transferStep = 3;
+            }
             else
             {
                 return fileTransferInProgress;
