@@ -172,7 +172,7 @@ void cSampleImporter::showDefaultScreen()
     display.setControlColors(label[4], display.getTheme().activeButtonLabelsColors);
     display.setControlColors(label[5], display.getTheme().activeButtonLabelsColors);
     display.setControlColors(label[6], display.getTheme().activeLabelsColors);
-    display.setControlColors(label[7], display.getTheme().activeLabelsColors);
+    display.setControlColors(label[7], display.getTheme().activeButtonLabelsColors);
 
     for (uint8_t i = 0; i < 8; i++)
     {
@@ -192,6 +192,8 @@ void cSampleImporter::showDefaultScreen()
     display.setControlValue(label[2], 0);
     display.setControlValue(label[3], 0);
     display.setControlValue(label[4], 0);
+
+    updateMemoryButtonLabel();
 
     display.setControlValue(bgLabel, 255); // 0b11111111
     display.refreshControl(bgLabel);
@@ -833,6 +835,8 @@ void cSampleImporter::showImportScreen()
     display.setControlText(label[0], "Preview");
     display.setControlText(label[1], "Start");
     display.setControlText(label[2], "End");
+    display.setControlText(label[4], "Import");
+    display.setControlText2(label[4], "Stream");
     display.setControlText(label[5], "Cancel");
     display.setControlText(label[6], "Import");
     display.setControlText2(label[6], "Low quality");
@@ -861,6 +865,8 @@ void cSampleImporter::showImportScreen()
     // display.refreshControl(progressCursor);
 
     importApplyNormalButtonLastStyle = 255;
+    importApplyLoFiButtonLastStyle = 255;
+    importApplyStreamButtonLastStyle = 255;
     showImportApplyButtonStyle();
 
     hideImportPreview();
@@ -883,7 +889,7 @@ void cSampleImporter::showImportStartPointValue()
     float recTimeValue = importSampleSamplesCount / 44100.0;
     float localStartPoint = (recTimeValue * importStartPoint) / MAX_16BIT;
 
-    sprintf(startPointValueText, "%.3fs", localStartPoint);
+    snprintf(startPointValueText, sizeof(startPointValueText), "%.3fs", localStartPoint);
 
     display.setControlText2(label[1], startPointValueText);
     display.setControlShow(label[1]);
@@ -896,7 +902,7 @@ void cSampleImporter::showImportEndPointValue()
     float recTimeValue = importSampleSamplesCount / 44100.0;
     float localEndPoint = (recTimeValue * importEndPoint) / MAX_16BIT;
 
-    sprintf(endPointValueText, "%.3fs", localEndPoint);
+    snprintf(endPointValueText, sizeof(endPointValueText), "%.3fs", localEndPoint);
 
     display.setControlText2(label[2], endPointValueText);
     display.setControlShow(label[2]);
@@ -913,7 +919,7 @@ void cSampleImporter::showImportPreviewValue()
     if (playTimeValue >= (localEndPoint - 0.01))
         playTimeValue = localEndPoint;
 
-    sprintf(playTimeValueText, "%.3fs", playTimeValue);
+    snprintf(playTimeValueText, sizeof(playTimeValueText), "%.3fs", playTimeValue);
 
     display.setControlText2(label[0], playTimeValueText);
     display.setControlShow(label[0]);
@@ -969,4 +975,54 @@ void cSampleImporter::showImportApplyButtonStyle()
             importApplyLoFiButtonLastStyle = 0;
         }
     }
+
+    if (calcImportIsEnoughMemoryStream())
+    {
+        if (importApplyStreamButtonLastStyle != 1)
+        {
+            display.setControlColors(label[4], display.getTheme().activeButtonLabelsColors);
+            display.refreshControl(label[4]);
+            importApplyStreamButtonLastStyle = 1;
+        }
+    }
+    else
+    {
+        if (importApplyStreamButtonLastStyle != 0)
+        {
+            display.setControlColors(label[4], display.getTheme().inactiveButtonLabelsColors);
+            display.refreshControl(label[4]);
+            importApplyStreamButtonLastStyle = 0;
+        }
+    }
+}
+
+void cSampleImporter::updateMemoryButtonLabel()
+{
+    if (selectedPlace == 1 && selectedSlot < kSampleInstrumentsCount &&
+        mtProject.instrument[selectedSlot].isActive)
+    {
+        bool streamed = mtProject.sampleMemory[selectedSlot].isStreamed;
+        bool canStream = (mtProject.instrument[selectedSlot].sample.length > kStreamPreCacheFrames) &&
+                         isPlayModeStreamable(mtProject.instrument[selectedSlot].playMode);
+        display.setControlText(label[7], streamed ? "Mode: [S]" : "Mode: RAM");
+        display.setControlColors(
+          label[7],
+          (streamed || canStream) ? display.getTheme().activeButtonLabelsColors
+                                  : display.getTheme().inactiveButtonLabelsColors);
+    }
+    else
+    {
+        const char* modeText = "Mem: RAM";
+        if (sampleLoadMode == enSampleLoadMode::kAuto)
+        {
+            modeText = "Mem: Auto";
+        }
+        else if (sampleLoadMode == enSampleLoadMode::kStream)
+        {
+            modeText = "Mem: [S]";
+        }
+        display.setControlText(label[7], modeText);
+        display.setControlColors(label[7], display.getTheme().activeButtonLabelsColors);
+    }
+    display.refreshControl(label[7]);
 }
